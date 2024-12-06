@@ -2,10 +2,11 @@ from telethon import TelegramClient, events
 import requests
 import os
 
-# Directly add your API credentials here
-API_ID = 25618359  # Replace with your actual API ID
-API_HASH = "65e8b35c588ff38624c4d4d3aabe481a"  # Replace with your actual API Hash
-BOT_TOKEN = "7645375723:AAEuSF_4oQ1igBxzK5Ojr0r-x3BXdO86eWM"  # Replace with your actual Bot Token
+# Fetch required credentials from environment variables
+API_ID = int(os.getenv("API_ID", 25618359))  # Replace with your actual API ID or set it in Render's environment variables
+API_HASH = os.getenv("API_HASH", "65e8b35c588ff38624c4d4d3aabe481a")  # Replace with your actual API Hash or set it in Render
+BOT_TOKEN = os.getenv("BOT_TOKEN", "7645375723:AAEuSF_4oQ1igBxzK5Ojr0r-x3BXdO86eWM")  # Replace with your actual Bot Token or set it in Render
+PORT = int(os.getenv("PORT", 8080))  # Render provides a PORT environment variable
 
 # Initialize the Telegram client
 client = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
@@ -52,22 +53,26 @@ async def upload_handler(event):
 
         total_size = int(response.headers.get('content-length', 0))
         downloaded_size = 0
+        last_progress = None
 
         with open(filename, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
                 downloaded_size += len(chunk)
 
-                # Update the progress bar
+                # Update the progress bar only if progress has changed
                 progress = progress_bar(downloaded_size, total_size)
-                await progress_message.edit(f"Downloading...\n{progress}")
+                if progress != last_progress:
+                    await progress_message.edit(f"Downloading...\n{progress}")
+                    last_progress = progress
 
         await progress_message.edit("Download complete. Preparing upload...")
 
         # Upload the file to Telegram
         async def upload_progress(current, total):
             progress = progress_bar(current, total)
-            await progress_message.edit(f"Uploading...\n{progress}")
+            if progress != last_progress:
+                await progress_message.edit(f"Uploading...\n{progress}")
 
         await client.send_file(event.chat_id, filename, caption=f"Uploaded: {filename}", progress_callback=upload_progress)
 
@@ -77,6 +82,7 @@ async def upload_handler(event):
     except Exception as e:
         await event.reply(f"Error: {str(e)}")
 
-# Start the bot
-print("Bot is running...")
-client.run_until_disconnected()
+# Start the bot on the provided PORT
+if __name__ == "__main__":
+    print(f"Bot is running on port {PORT}...")
+    client.run_until_disconnected()
