@@ -24,10 +24,15 @@ def progress_bar(progress, total, start_time, speed, length=10):
 
     eta = (total - progress) / speed if speed > 0 else float('inf')
 
-    # Format file size and speed
+    # Format file size
     total_size_str = f"{total / (1024 * 1024):.2f} MB"
-    speed_str = f"{speed / 1024:.2f} KB/s"
     eta_str = f"{int(eta // 60)}m {int(eta % 60)}s" if eta < float('inf') else "∞"
+
+    # Format speed
+    if speed >= 1024 * 1024:
+        speed_str = f"{speed / (1024 * 1024):.2f} MB/s"
+    else:
+        speed_str = f"{speed / 1024:.2f} KB/s"
 
     return f"[{bar}] {percentage}% - 📦 Size: {total_size_str} - ⏳ ETA: {eta_str} - 🚀 Speed: {speed_str}"
 
