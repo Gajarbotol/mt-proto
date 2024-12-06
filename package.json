@@ -1,0 +1,10 @@
+{
+  "name": "telegram-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for uploading files",
+  "main": "main.py",
+  "scripts": {
+    "start": "bash start.sh"
+  },
+  "dependencies": {}
+}
