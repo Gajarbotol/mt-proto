@@ -2,16 +2,21 @@ from telethon import TelegramClient, events, Button
 import requests
 import os
 import time
+import dropbox
 from flask import Flask
 
 # Fetch required credentials from environment variables
-API_ID = int(os.getenv("API_ID", 25618359))  # Replace with your actual API ID or set it in Render
-API_HASH = os.getenv("API_HASH", "65e8b35c588ff38624c4d4d3aabe481a")  # Replace with your actual API Hash
-BOT_TOKEN = os.getenv("BOT_TOKEN", "7645375723:AAEuSF_4oQ1igBxzK5Ojr0r-x3BXdO86eWM")  # Replace with your actual Bot Token
-PORT = int(os.getenv("PORT", 8080))  # Render automatically provides PORT
+API_ID = int(os.getenv("API_ID", 25618359))
+API_HASH = os.getenv("API_HASH", "65e8b35c588ff38624c4d4d3aabe481a")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "7645375723:AAEuSF_4oQ1igBxzK5Ojr0r-x3BXdO86eWM")
+DROPBOX_ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN", "sl.CCH5TahTraG96uobJgGI8vN4D3dnIIk0VTDk-yKmS8xdbwpFbQsZubMKivtFxOKKqL6nCPNVggTCeudVEpOBa2zXQCUFWLinV7kCOrp5KUtU3ClpjryVPRPW63OZcWnUQP72ZlW1uy_i")
+PORT = int(os.getenv("PORT", 8080))
 
 # Initialize the Telegram client
 client = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+
+# Initialize Dropbox client
+dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
 
 # Progress bar function with ETA, file size, and speed
 def progress_bar(progress, total, start_time, speed, length=10):
@@ -21,14 +26,10 @@ def progress_bar(progress, total, start_time, speed, length=10):
     completed = int(progress / total * length)
     bar = '✅' * completed + '⬜' * (length - completed)
     percentage = int(progress / total * 100)
-
     eta = (total - progress) / speed if speed > 0 else float('inf')
 
-    # Format file size
     total_size_str = f"{total / (1024 * 1024):.2f} MB"
     eta_str = f"{int(eta // 60)}m {int(eta % 60)}s" if eta < float('inf') else "∞"
-
-    # Format speed
     if speed >= 1024 * 1024:
         speed_str = f"{speed / (1024 * 1024):.2f} MB/s"
     else:
@@ -94,6 +95,10 @@ async def upload_handler(event):
 
         await progress_message.edit("✅ Download complete. Preparing upload...")
 
+        # Upload the file to Dropbox
+        with open(filename, 'rb') as f:
+            dbx.files_upload(f.read(), f'/{filename}', mode=dropbox.files.WriteMode('overwrite'))
+
         # Upload the file to Telegram
         async def upload_progress(current, total):
             current_upload_progress = int(current / total * 100)
@@ -102,7 +107,7 @@ async def upload_handler(event):
 
             if current_upload_progress != progress_tracker['last_progress']:
                 upload_progress_bar = progress_bar(current, total, start_time, speed)
-                await progress_message.edit(f"⬆️ Uploading...\n{upload_progress_bar}")
+                await progress_message.edit(f"⬆️ Uploading to Telegram...\n{upload_progress_bar}")
                 progress_tracker['last_progress'] = current_upload_progress
 
         await client.send_file(event.chat_id, filename,
