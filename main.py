@@ -54,28 +54,35 @@ async def upload_handler(event):
 
         total_size = int(response.headers.get('content-length', 0))
         downloaded_size = 0
-        last_progress = None
+        last_progress = -1  # Initialize to an impossible value
 
         with open(filename, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
                 downloaded_size += len(chunk)
 
+                # Calculate the current progress
+                current_progress = int(downloaded_size / total_size * 100)
+
                 # Update the progress bar only if progress has changed
-                progress = progress_bar(downloaded_size, total_size)
-                if progress != last_progress:
+                if current_progress != last_progress:
+                    progress = progress_bar(downloaded_size, total_size)
                     await progress_message.edit(f"Downloading...\n{progress}")
-                    last_progress = progress
+                    last_progress = current_progress
 
         await progress_message.edit("Download complete. Preparing upload...")
 
         # Upload the file to Telegram
         async def upload_progress(current, total):
-            upload_progress_bar = progress_bar(current, total)
-            if upload_progress_bar != last_progress:
+            current_upload_progress = int(current / total * 100)
+            if current_upload_progress != last_progress:
+                upload_progress_bar = progress_bar(current, total)
                 await progress_message.edit(f"Uploading...\n{upload_progress_bar}")
+                last_progress = current_upload_progress
 
-        await client.send_file(event.chat_id, filename, caption=f"Uploaded: {filename}", progress_callback=upload_progress)
+        await client.send_file(event.chat_id, filename,
+                               caption=f"Uploaded: {filename}",
+                               progress_callback=upload_progress)
 
         # Cleanup
         os.remove(filename)
