@@ -1,12 +1,13 @@
 from telethon import TelegramClient, events
 import requests
 import os
+from flask import Flask
 
 # Fetch required credentials from environment variables
-API_ID = int(os.getenv("API_ID", 25618359))  # Replace with your actual API ID or set it in Render's environment variables
-API_HASH = os.getenv("API_HASH", "65e8b35c588ff38624c4d4d3aabe481a")  # Replace with your actual API Hash or set it in Render
-BOT_TOKEN = os.getenv("BOT_TOKEN", "7645375723:AAEuSF_4oQ1igBxzK5Ojr0r-x3BXdO86eWM")  # Replace with your actual Bot Token or set it in Render
-PORT = int(os.getenv("PORT", 8080))  # Render provides a PORT environment variable
+API_ID = int(os.getenv("API_ID", 25618359))  # Replace with your actual API ID or set it in Render
+API_HASH = os.getenv("API_HASH", "65e8b35c588ff38624c4d4d3aabe481a")  # Replace with your actual API Hash
+BOT_TOKEN = os.getenv("BOT_TOKEN", "7645375723:AAEuSF_4oQ1igBxzK5Ojr0r-x3BXdO86eWM")  # Replace with your actual Bot Token
+PORT = int(os.getenv("PORT", 8080))  # Render automatically provides PORT
 
 # Initialize the Telegram client
 client = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
@@ -70,9 +71,9 @@ async def upload_handler(event):
 
         # Upload the file to Telegram
         async def upload_progress(current, total):
-            progress = progress_bar(current, total)
-            if progress != last_progress:
-                await progress_message.edit(f"Uploading...\n{progress}")
+            upload_progress_bar = progress_bar(current, total)
+            if upload_progress_bar != last_progress:
+                await progress_message.edit(f"Uploading...\n{upload_progress_bar}")
 
         await client.send_file(event.chat_id, filename, caption=f"Uploaded: {filename}", progress_callback=upload_progress)
 
@@ -82,7 +83,24 @@ async def upload_handler(event):
     except Exception as e:
         await event.reply(f"Error: {str(e)}")
 
-# Start the bot on the provided PORT
+# Auto-ping system using Flask
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is running and alive!", 200
+
+# Run Flask alongside the bot
 if __name__ == "__main__":
-    print(f"Bot is running on port {PORT}...")
-    client.run_until_disconnected()
+    from threading import Thread
+
+    def run_flask():
+        app.run(host="0.0.0.0", port=PORT)
+
+    def run_telethon():
+        print(f"Bot is running on port {PORT}...")
+        client.run_until_disconnected()
+
+    # Run Flask in a separate thread to handle pings
+    Thread(target=run_flask).start()
+    run_telethon()
